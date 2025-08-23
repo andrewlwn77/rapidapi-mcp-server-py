@@ -22,16 +22,24 @@ A Model Context Protocol (MCP) server that provides comprehensive RapidAPI marke
 
 ### Installation
 
+#### Option 1: Install from PyPI (Recommended)
+
+```bash
+pip install rapidapi-mcp-server
+```
+
+#### Option 2: Development Installation
+
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/rapidapi-mcp-server-py.git
-cd rapidapi-mcp-server-py
+git clone https://github.com/andrewlwn77/rapidapi-mcp-server.git
+cd rapidapi-mcp-server
 
 # Create virtual environment
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install in development mode
 pip install -e .
 ```
 
@@ -39,13 +47,43 @@ pip install -e .
 
 Add to your Claude Desktop `.mcp.json`:
 
+#### Option 1: Using PyPI Installation
 ```json
 {
   "mcpServers": {
     "rapidapi-discovery": {
-      "command": "/path/to/rapidapi-mcp-server-py/venv/bin/python",
+      "command": "rapidapi-mcp-server",
+      "env": {
+        "CHROME_EXECUTABLE_PATH": "/opt/google/chrome/google-chrome"
+      }
+    }
+  }
+}
+```
+
+#### Option 2: Using Python Module
+```json
+{
+  "mcpServers": {
+    "rapidapi-discovery": {
+      "command": "python",
       "args": ["-m", "rapidapi_mcp_server.server"],
-      "cwd": "/path/to/rapidapi-mcp-server-py",
+      "env": {
+        "CHROME_EXECUTABLE_PATH": "/opt/google/chrome/google-chrome"
+      }
+    }
+  }
+}
+```
+
+#### Option 3: Development Installation
+```json
+{
+  "mcpServers": {
+    "rapidapi-discovery": {
+      "command": "/path/to/venv/bin/python",
+      "args": ["-m", "rapidapi_mcp_server.server"],
+      "cwd": "/path/to/rapidapi-mcp-server",
       "env": {
         "CHROME_EXECUTABLE_PATH": "/opt/google/chrome/google-chrome"
       }

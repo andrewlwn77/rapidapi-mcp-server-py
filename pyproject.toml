@@ -4,17 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rapidapi-mcp-server"
-version = "2.1.0"
-description = "RapidAPI marketplace discovery and assessment MCP server using undetected-chromedriver"
+version = "1.0.0"
+description = "RapidAPI marketplace discovery and assessment MCP server using undetected-chromedriver for anti-bot detection bypass"
 authors = [
-    {name = "RapidAPI MCP Server Contributors", email = "rapidapi-mcp@users.noreply.github.com"}
+    {name = "Andrew Lewin", email = "andrewlwn77@users.noreply.github.com"}
 ]
-license = {text = "MIT"}
+license = "MIT"
 readme = "README.md"
 requires-python = ">=3.8"
+keywords = ["mcp", "rapidapi", "api", "discovery", "chrome", "automation", "claude", "ai"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: System :: Networking",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -22,6 +26,9 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Framework :: AsyncIO",
 ]
 dependencies = [
     "mcp>=1.0.0",
@@ -48,8 +55,10 @@ rapidapi-mcp-server = "rapidapi_mcp_server.server:cli_main"
 
 [project.urls]
 Homepage = "https://github.com/andrewlwn77/rapidapi-mcp-server"
-Repository = "https://github.com/andrewlwn77/rapidapi-mcp-server"
+Repository = "https://github.com/andrewlwn77/rapidapi-mcp-server.git"
 Issues = "https://github.com/andrewlwn77/rapidapi-mcp-server/issues"
+Documentation = "https://github.com/andrewlwn77/rapidapi-mcp-server#readme"
+Changelog = "https://github.com/andrewlwn77/rapidapi-mcp-server/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]
