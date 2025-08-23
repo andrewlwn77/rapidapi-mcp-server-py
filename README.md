@@ -288,7 +288,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📞 Support
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/your-username/rapidapi-mcp-server-py/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/andrewlwn77/rapidapi-mcp-server/issues)
 - **Documentation**: This README and inline code documentation
 - **Examples**: See the tool examples above for usage patterns
 
