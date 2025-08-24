@@ -1,6 +1,7 @@
-"""Chrome client using undetected-chromedriver for web scraping RapidAPI marketplace."""
+"""Chrome client using undetected-chromedriver for web scraping RapidAPI marketplace with network monitoring."""
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -14,11 +15,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
+
 logger = logging.getLogger(__name__)
 
 
 class ChromeClient:
-    """Client for interacting with undetected Chrome to scrape RapidAPI marketplace."""
+    """Client for interacting with undetected Chrome to scrape RapidAPI marketplace with network monitoring."""
 
     def __init__(self):
         self.driver: Optional[uc.Chrome] = None
@@ -337,6 +339,8 @@ class ChromeClient:
                                 endpoints.append(endpoint_data)
                 
                 assessment['endpoints'] = endpoints[:10]  # Limit to avoid too much data
+                
+                # Static scraping complete
                 
                 return assessment
             

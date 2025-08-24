@@ -16,6 +16,7 @@ from mcp.types import (
 )
 
 from .chrome_client import ChromeClient
+from .enhanced_chrome_client import EnhancedChromeClient
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,8 +25,8 @@ logger = logging.getLogger(__name__)
 # Initialize MCP server
 server = Server("rapidapi-mcp-server")
 
-# Global Chrome client instance
-chrome_client: ChromeClient | None = None
+# Global Chrome client instance - use enhanced version
+chrome_client: EnhancedChromeClient | None = None
 
 
 @server.list_resources()
@@ -181,9 +182,9 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
     global chrome_client
     
     try:
-        # Initialize Chrome client if needed
+        # Initialize enhanced Chrome client if needed
         if not chrome_client:
-            chrome_client = ChromeClient()
+            chrome_client = EnhancedChromeClient()
         
         if name == "search_apis":
             query = arguments["query"]
@@ -202,7 +203,8 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
         elif name == "assess_api":
             api_url = arguments["apiUrl"]
             
-            result = await chrome_client.assess_api(api_url)
+            # Use enhanced assessment - client is now EnhancedChromeClient
+            result = await chrome_client.assess_api_enhanced(api_url)
             
             return [
                 TextContent(
@@ -214,8 +216,12 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
         elif name == "get_api_documentation":
             api_url = arguments["apiUrl"]
             
-            # Get basic assessment which includes endpoints
-            result = await chrome_client.assess_api(api_url)
+            # Get enhanced assessment which includes comprehensive endpoints
+            if hasattr(chrome_client, 'assess_api_enhanced'):
+                result = await chrome_client.assess_api_enhanced(api_url)
+            else:
+                result = await chrome_client.assess_api(api_url)
+                
             doc_info = {
                 'documentationUrl': result.get('documentationUrl'),
                 'endpoints': result.get('endpoints', [])
@@ -288,8 +294,11 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
         elif name == "get_enhanced_api_documentation":
             api_url = arguments["apiUrl"]
             
-            # For now, this returns same as assess_api but focused on documentation
-            result = await chrome_client.assess_api(api_url)
+            # Use enhanced assessment for comprehensive documentation
+            if hasattr(chrome_client, 'assess_api_enhanced'):
+                result = await chrome_client.assess_api_enhanced(api_url)
+            else:
+                result = await chrome_client.assess_api(api_url)
             
             return [
                 TextContent(
