@@ -34,14 +34,46 @@ class ChromeClient:
                 pass
             self.driver = None
 
-        # Chrome options for stealth (using same proven config as reddit-mcp)
+        # Chrome options (copied from working undetected-chrome-mcp)
         options = uc.ChromeOptions()
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-plugins")
-        options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+        
+        # Basic stealth arguments (from working chrome_manager.py)
+        stealth_args = [
+            "--no-sandbox",
+            "--disable-dev-shm-usage", 
+            "--disable-blink-features=AutomationControlled",
+            "--disable-extensions",
+            "--disable-plugins",
+            "--disable-default-apps",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+            "--disable-features=TranslateUI",
+            "--disable-ipc-flooding-protection",
+            "--disable-background-networking",
+            "--disable-sync",
+            "--no-default-browser-check",
+            "--no-first-run"
+        ]
+        
+        for arg in stealth_args:
+            options.add_argument(arg)
+        
+        # Random user agent (from working chrome_manager.py)
+        user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        ]
+        import random
+        user_agent = random.choice(user_agents)
+        options.add_argument(f"--user-agent={user_agent}")
+        
+        # Random window size for fingerprint variation (from working chrome_manager.py)
+        width = random.randint(1024, 1920)
+        height = random.randint(768, 1080)
+        options.add_argument(f"--window-size={width},{height}")
         
         # Set headless mode
         options.add_argument("--headless=new")
@@ -54,17 +86,21 @@ class ChromeClient:
                 options.binary_location = chrome_executable
                 logger.info(f"Using Chrome executable: {chrome_executable}")
             
-            # Create undetected Chrome driver
+            # Create undetected Chrome driver with CDP events enabled (CRITICAL FOR NETWORK MONITORING)
             self.driver = uc.Chrome(
                 options=options,
                 version_main=None,  # Auto-detect Chrome version
                 use_subprocess=True,
-                headless=True
+                headless=True if "--headless" in str(options.arguments) else False,  # Conditional headless like working chrome_manager.py
+                enable_cdp_events=True  # Enable CDP for network monitoring (from working chrome_manager.py)
             )
             
             # Set implicit wait and page load timeout
             self.driver.implicitly_wait(10)
-            self.driver.set_page_load_timeout(45)
+            self.driver.set_page_load_timeout(30)  # Match working chrome_manager.py
+            
+            # Apply additional anti-detection measures (from working chrome_manager.py)
+            self._apply_stealth_scripts(self.driver)
             
             return self.driver
             
@@ -72,8 +108,71 @@ class ChromeClient:
             logger.error(f"Failed to create Chrome driver: {e}")
             raise
 
-    def _human_like_delay(self, min_delay: float = 0.5, max_delay: float = 2.0) -> None:
-        """Add human-like delays between actions."""
+    def _apply_stealth_scripts(self, driver: uc.Chrome):
+        """Apply additional JavaScript-based stealth measures (from working chrome_manager.py)."""
+        stealth_script = """
+        // Remove webdriver property
+        Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+        });
+        
+        // Mock chrome object
+        window.chrome = {
+            runtime: {},
+            loadTimes: function() {
+                return {
+                    connectionInfo: 'http/1.1',
+                    finishDocumentLoadTime: Date.now(),
+                    finishLoadTime: Date.now(),
+                    firstPaintAfterLoadTime: 0,
+                    firstPaintTime: Date.now(),
+                    navigationType: 'Other',
+                    npnNegotiatedProtocol: 'unknown',
+                    requestTime: Date.now() - 1000,
+                    startLoadTime: Date.now() - 1000,
+                    wasAlternateProtocolAvailable: false,
+                    wasFetchedViaSpdy: false,
+                    wasNpnNegotiated: false
+                };
+            },
+            csi: function() {
+                return {
+                    onloadT: Date.now(),
+                    pageT: Date.now() - 1000,
+                    startE: Date.now() - 1000,
+                    tran: 15
+                };
+            }
+        };
+        
+        // Mock plugins
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [1, 2, 3, 4, 5],
+        });
+        
+        // Mock languages
+        Object.defineProperty(navigator, 'languages', {
+            get: () => ['en-US', 'en'],
+        });
+        
+        // Mock permissions
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters) => (
+            parameters.name === 'notifications' ?
+                Promise.resolve({ state: Notification.permission }) :
+                originalQuery(parameters)
+        );
+        """
+        
+        try:
+            driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+                'source': stealth_script
+            })
+        except Exception as e:
+            logger.warning(f"Could not apply stealth scripts: {e}")
+
+    def _human_like_delay(self, min_delay: float = 0.1, max_delay: float = 0.5) -> None:
+        """Add human-like delays between actions (from working chrome_manager.py)."""
         delay = random.uniform(min_delay, max_delay)
         time.sleep(delay)
 
@@ -230,7 +329,7 @@ class ChromeClient:
         Returns:
             Dictionary containing API assessment data
         """
-        logger.info(f"Assessing API at: {api_url}")
+        logger.error(f"⚠️ BASIC ASSESS_API CALLED (no network monitoring) for: {api_url}")
 
         driver = None
         try:

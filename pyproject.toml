@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rapidapi-mcp-server"
-version = "1.0.0"
+version = "1.2.0"
 description = "RapidAPI marketplace discovery and assessment MCP server using undetected-chromedriver for anti-bot detection bypass"
 authors = [
     {name = "Andrew Lewin", email = "andrewlwn77@users.noreply.github.com"}
 ]
-license = "MIT"
+license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.8"
 keywords = ["mcp", "rapidapi", "api", "discovery", "chrome", "automation", "claude", "ai"]
@@ -19,7 +19,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Internet :: WWW/HTTP :: Browsers",
     "Topic :: System :: Networking",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
