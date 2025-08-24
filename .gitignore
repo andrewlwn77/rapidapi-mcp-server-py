@@ -193,3 +193,5 @@ debug/
 
 # BMAD history
 .bmad-history/
+
+build-test-venv/

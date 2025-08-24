@@ -153,7 +153,7 @@ async def handle_list_tools() -> list[Tool]:
         ),
         Tool(
             name="get_pricing_plans",
-            description="Extract detailed pricing plans and tier limits for a specific API",
+            description="Extract comprehensive pricing information including tier limits, features, rate limits, and overage costs from /pricing page",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -373,14 +373,13 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
         elif name == "get_pricing_plans":
             api_url = arguments["apiUrl"]
             
-            # Get assessment which includes pricing
-            result = await chrome_client.assess_api(api_url)
-            pricing_data = result.get('pricing', {})
+            # Call detailed pricing extraction directly (driver should be initialized)
+            detailed_pricing = await chrome_client._extract_detailed_pricing(api_url)
             
             return [
                 TextContent(
                     type="text",
-                    text=str(pricing_data)
+                    text=str(detailed_pricing)
                 )
             ]
         

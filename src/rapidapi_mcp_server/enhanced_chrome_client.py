@@ -1146,6 +1146,74 @@ class EnhancedChromeClient(ChromeClient):
             except:
                 pass
             return {}
+
+    async def _extract_detailed_pricing(self, api_url: str) -> dict:
+        """Navigate to /pricing page and extract detailed pricing tier information."""
+        try:
+            # Ensure Chrome driver is initialized
+            if not hasattr(self, 'driver') or not self.driver:
+                self.driver = self._get_chrome_driver()
+            
+            # Navigate directly to pricing page
+            pricing_url = api_url.rstrip('/') + '/pricing'
+            self.driver.get(pricing_url)
+            
+            # Wait for pricing page to load
+            import time
+            time.sleep(4)  # Longer wait for pricing carousel to load
+            
+            pricing_script = '''
+            let pricing = {
+                tiers: [],
+                currency: "USD"
+            };
+            
+            const tierCards = document.querySelectorAll('.billing-plans-carousel .flex[class*="min-w-"]');
+            
+            for (let card of tierCards) {
+                try {
+                    let tier = {
+                        name: null,
+                        price: null
+                    };
+                    
+                    // Extract tier name
+                    const nameElement = card.querySelector('.text-sm.font-semibold.leading-tight.text-foreground');
+                    if (nameElement) {
+                        tier.name = nameElement.textContent.trim();
+                    }
+                    
+                    // Extract price
+                    const priceElement = card.querySelector('.text-3xl.font-medium.leading-9.text-foreground');
+                    if (priceElement) {
+                        tier.price = priceElement.textContent.trim();
+                    }
+                    
+                    if (tier.name && tier.price) {
+                        pricing.tiers.push(tier);
+                    }
+                } catch (error) {
+                    console.warn('Error processing tier card:', error);
+                }
+            }
+            
+            return pricing;
+            '''
+            
+            # Execute pricing extraction script
+            result = self.driver.execute_script(pricing_script)
+            
+            if result and isinstance(result, dict):
+                tier_count = len(result.get('tiers', []))
+                logger.error(f"🔄 Extracted {tier_count} detailed pricing tiers")
+                return result
+            else:
+                logger.error(f"🔄 JavaScript execution returned: {type(result)} - {result}")
+                return {}
+            
+        except Exception as e:
+            logger.error(f"Error extracting detailed pricing: {e}")
+            return {}
     
     async def close(self):
         """Close the Chrome driver and cleanup."""
