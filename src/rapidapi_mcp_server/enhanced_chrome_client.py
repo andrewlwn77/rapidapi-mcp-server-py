@@ -502,59 +502,7 @@ class EnhancedChromeClient(ChromeClient):
             if provider_data['category']:
                 enhanced_data['category'] = provider_data['category']
             
-            # Extract endpoint sections (basic visible endpoints only)
-            endpoints_script = """
-            // Extract visible endpoint information
-            let endpoints = [];
-            
-            // Look for endpoint section buttons and titles
-            const sectionButtons = document.querySelectorAll('button[aria-controls*="radix"]:has(.whitespace-nowrap)');
-            
-            for (let button of sectionButtons) {
-                const titleElement = button.querySelector('.whitespace-nowrap.text-xs.font-normal');
-                if (titleElement) {
-                    const sectionName = titleElement.textContent.trim();
-                    
-                    // Check if section is expanded and has visible endpoints
-                    const controlsId = button.getAttribute('aria-controls');
-                    if (controlsId) {
-                        const contentElement = document.getElementById(controlsId);
-                        if (contentElement && contentElement.getAttribute('data-state') === 'open') {
-                            const endpointLinks = contentElement.querySelectorAll('a[href*="playground"]');
-                            
-                            for (let link of endpointLinks) {
-                                const endpointName = link.querySelector('.whitespace-nowrap')?.textContent.trim();
-                                const methodElement = link.querySelector('.text-blue-500 span');
-                                const method = methodElement?.textContent.trim();
-                                
-                                if (endpointName) {
-                                    endpoints.push({
-                                        section: sectionName,
-                                        name: endpointName,
-                                        method: method || 'GET',
-                                        link: link.getAttribute('href')
-                                    });
-                                }
-                            }
-                        } else {
-                            // Just record the section name even if not expanded
-                            endpoints.push({
-                                section: sectionName,
-                                name: 'Section available (not expanded)',
-                                method: 'UNKNOWN',
-                                link: null
-                            });
-                        }
-                    }
-                }
-            }
-            
-            return endpoints.length > 0 ? endpoints : null;
-            """
-            
-            endpoints_data = self.driver.execute_script(endpoints_script)
-            if endpoints_data:
-                enhanced_data['endpoints'] = endpoints_data
+            # Note: Endpoint extraction is now handled by _scrape_endpoint_sections() method
             
         except Exception as e:
             logger.error(f"Error during DOM extraction: {e}")
@@ -718,6 +666,9 @@ class EnhancedChromeClient(ChromeClient):
         // Fallback selectors if API Overview not found
         if (!description) {
             const fallbackSelectors = [
+                '.text-sm.font-normal.text-foreground',  // Specific selector for current page structure
+                '.text-sm',  // More general text-sm selector
+                'p:not([class*="metric"]):not([class*="stat"])',  // General paragraphs excluding metrics
                 '[class*="markdown"] p',
                 '.description p',
                 '[class*="desc"] p',
@@ -726,10 +677,14 @@ class EnhancedChromeClient(ChromeClient):
             
             for (let selector of fallbackSelectors) {
                 const elements = document.querySelectorAll(selector);
-                if (elements.length > 0) {
-                    description = Array.from(elements).map(el => el.textContent.trim()).join(' ');
-                    if (description.length > 50) break; // Ensure substantial content
+                for (let element of elements) {
+                    const text = element.textContent.trim();
+                    if (text.length > 50 && text.length < 1000) { // Reasonable length range
+                        description = text;
+                        break;
+                    }
                 }
+                if (description) break;
             }
         }
         
@@ -953,63 +908,14 @@ class EnhancedChromeClient(ChromeClient):
             return {}
     
     async def _scrape_endpoint_sections(self) -> list:
-        """Extract detailed endpoint sections by expanding collapsible sections."""
-        script = '''
-        // Extract endpoint sections with expansion (following documentation spec)
-        let endpoints = [];
+        """Extract detailed endpoint sections by expanding all collapsed sections first."""
+        logger.error("🔥 DEBUG: _scrape_endpoint_sections called - EXPAND ALL SECTIONS VERSION")
         
-        // Find all collapsible endpoint section buttons
-        const sectionButtons = document.querySelectorAll('button[aria-controls*="radix"]:has(.whitespace-nowrap)');
         
-        for (let button of sectionButtons) {
-            try {
-                // Get section title
-                const titleElement = button.querySelector('.whitespace-nowrap.text-xs.font-normal');
-                const sectionName = titleElement ? titleElement.textContent.trim() : '';
-                
-                // Check if section is already expanded
-                const isExpanded = button.getAttribute('aria-expanded') === 'true';
-                
-                if (!isExpanded) {
-                    // Click to expand the section
-                    button.click();
-                    // Wait for expansion animation
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                }
-                
-                // Extract endpoints from expanded section
-                const controlsId = button.getAttribute('aria-controls');
-                const expandedContent = document.getElementById(controlsId);
-                
-                if (expandedContent) {
-                    const endpointLinks = expandedContent.querySelectorAll('a[href*="playground"]');
-                    
-                    for (let link of endpointLinks) {
-                        const endpointName = link.querySelector('.whitespace-nowrap')?.textContent?.trim() || '';
-                        const methodElement = link.querySelector('.text-blue-500 span');
-                        const method = methodElement?.textContent?.trim() || 'GET';
-                        const playgroundUrl = link.href;
-                        
-                        if (endpointName) {
-                            endpoints.push({
-                                name: endpointName,
-                                method: method,
-                                section: sectionName,
-                                playgroundUrl: playgroundUrl,
-                                description: `${method} ${endpointName}`
-                            });
-                        }
-                    }
-                }
-            } catch (error) {
-                console.warn('Error processing section:', error);
-            }
-        }
+        # Wait for page load and then expand sections
+        import time
+        time.sleep(3)
         
-        return endpoints;
-        '''
-        
-        # Execute JavaScript using exact undetected-chrome MCP pattern
         try:
             from selenium.common.exceptions import JavascriptException, TimeoutException, WebDriverException
             
@@ -1017,19 +923,121 @@ class EnhancedChromeClient(ChromeClient):
                 logger.error("🔄 No Chrome driver available for endpoint section scraping")
                 return []
             
-            # Set script timeout
-            timeout = 45  # longer timeout for section expansion
-            self.driver.set_script_timeout(timeout)
+            # First, find all sections and expand them one by one with delays
+            find_sections_script = '''
+            const sectionButtons = document.querySelectorAll('button[aria-controls*="radix"]:has(.whitespace-nowrap)');
+            let sections = [];
             
-            # Execute the async script with proper callback handling
-            async_script = f"""
-            var callback = arguments[arguments.length - 1];
-            (async function() {{
-                {script}
-            }})().then(callback).catch(err => callback([]));
-            """
+            for (let button of sectionButtons) {
+                try {
+                    const titleElement = button.querySelector('.whitespace-nowrap.text-xs.font-normal');
+                    const sectionName = titleElement ? titleElement.textContent.trim() : '';
+                    const controlsId = button.getAttribute('aria-controls');
+                    const contentElement = document.getElementById(controlsId);
+                    
+                    if (contentElement) {
+                        const dataState = contentElement.getAttribute('data-state');
+                        sections.push({
+                            name: sectionName,
+                            state: dataState,
+                            buttonIndex: Array.from(sectionButtons).indexOf(button)
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Error finding section:', error);
+                }
+            }
             
-            result = self.driver.execute_async_script(async_script)
+            return sections;
+            '''
+            
+            sections = self.driver.execute_script(find_sections_script)
+            logger.error(f"🔄 Found {len(sections)} sections: {sections}")
+            
+            # Now expand each closed section individually with delays
+            expand_actions = []
+            for section in sections:
+                if section['state'] == 'closed':
+                    try:
+                        click_script = f'''
+                        const sectionButtons = document.querySelectorAll('button[aria-controls*="radix"]:has(.whitespace-nowrap)');
+                        const button = sectionButtons[{section['buttonIndex']}];
+                        if (button) {{
+                            button.click();
+                            return true;
+                        }}
+                        return false;
+                        '''
+                        clicked = self.driver.execute_script(click_script)
+                        if clicked:
+                            expand_actions.append({'name': section['name'], 'action': 'clicked'})
+                            logger.error(f"🔄 Clicked to expand: {section['name']}")
+                            time.sleep(0.5)  # Human-like delay between clicks
+                        else:
+                            expand_actions.append({'name': section['name'], 'action': 'failed_to_click'})
+                    except Exception as e:
+                        logger.error(f"Error clicking section {section['name']}: {e}")
+                        expand_actions.append({'name': section['name'], 'action': 'error'})
+                else:
+                    expand_actions.append({'name': section['name'], 'action': 'already_open'})
+                    
+            logger.error(f"🔄 Section expansion result: {expand_actions}")
+            
+            # Wait for all sections to fully expand
+            time.sleep(3)
+            
+            # Now extract endpoints from all sections
+            extract_script = '''
+            const sectionButtons = document.querySelectorAll('button[aria-controls*="radix"]:has(.whitespace-nowrap)');
+            let endpoints = [];
+            let sectionStats = [];
+            
+            for (let button of sectionButtons) {
+                try {
+                    const titleElement = button.querySelector('.whitespace-nowrap.text-xs.font-normal');
+                    const sectionName = titleElement ? titleElement.textContent.trim() : '';
+                    const controlsId = button.getAttribute('aria-controls');
+                    const contentElement = document.getElementById(controlsId);
+                    
+                    if (contentElement) {
+                        const dataState = contentElement.getAttribute('data-state');
+                        const endpointLinks = contentElement.querySelectorAll('a[href*="playground"]');
+                        
+                        sectionStats.push({
+                            name: sectionName,
+                            state: dataState,
+                            endpoints: endpointLinks.length
+                        });
+                        
+                        // Extract from all sections
+                        for (let link of endpointLinks) {
+                            const endpointName = link.querySelector('.whitespace-nowrap')?.textContent?.trim() || '';
+                            const methodElement = link.querySelector('.text-blue-500 span');
+                            const method = methodElement?.textContent?.trim() || 'GET';
+                            const playgroundUrl = link.href || link.getAttribute('href');
+                            
+                            if (endpointName) {
+                                endpoints.push({
+                                    name: endpointName,
+                                    method: method,
+                                    section: sectionName,
+                                    playgroundUrl: playgroundUrl,
+                                    description: `${method} ${endpointName}`
+                                });
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Error processing section:', error);
+                }
+            }
+            
+            console.log('Final section stats:', sectionStats);
+            return endpoints;
+            '''
+            
+            # Extract all endpoints from now-expanded sections
+            result = self.driver.execute_script(extract_script)
             
             # Process the result
             if result is None or not isinstance(result, list):
@@ -1037,7 +1045,7 @@ class EnhancedChromeClient(ChromeClient):
             else:
                 endpoints = result
             
-            logger.error(f"🔄 Scraped {len(endpoints)} endpoint sections")
+            logger.error(f"🔄 Scraped {len(endpoints)} endpoint sections total")
             return endpoints
             
         except JavascriptException as e:
