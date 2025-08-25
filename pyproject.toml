@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rapidapi-mcp-server"
-version = "1.2.0"
+version = "1.3.0"
 description = "RapidAPI marketplace discovery and assessment MCP server using undetected-chromedriver for anti-bot detection bypass"
 authors = [
     {name = "Andrew Lewin", email = "andrewlwn77@users.noreply.github.com"}
