@@ -26,8 +26,7 @@ from mcp.types import (
 from .chrome_client import ChromeClient
 from .enhanced_chrome_client import EnhancedChromeClient
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Get logger (logging already configured above)
 logger = logging.getLogger(__name__)
 
 # Initialize MCP server
